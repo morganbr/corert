@@ -8,14 +8,11 @@ using Internal.TypeSystem;
 
 using ILCompiler.DependencyAnalysis;
 using ILCompiler.DependencyAnalysisFramework;
-using ILCompiler.CppCodeGen;
 
 namespace ILCompiler
 {
     public sealed class WebAssemblyCodegenCompilation : Compilation
     {
-        private CppWriter _cppWriter = null;
-
         internal WebAssemblyCodegenConfigProvider Options { get; }
 
         internal WebAssemblyCodegenCompilation(
@@ -48,20 +45,18 @@ namespace ILCompiler
 
         protected override void CompileInternal(string outputFile, ObjectDumper dumper)
         {
-            _cppWriter = new CppWriter(this, outputFile);
-
             _dependencyGraph.ComputeMarkedNodes();
 
             var nodes = _dependencyGraph.MarkedNodeList;
 
-            _cppWriter.OutputCode(nodes, NodeFactory);
+            WebAssemblyObjectWriter.EmitObject(outputFile, nodes, NodeFactory, dumper);
         }
 
         protected override void ComputeDependencyNodeDependencies(List<DependencyNodeCore<NodeFactory>> obj)
         {
-            foreach (CppMethodCodeNode methodCodeNodeNeedingCode in obj)
+            foreach (MethodCodeNode methodCodeNodeNeedingCode in obj)
             {
-                _cppWriter.CompileMethod(methodCodeNodeNeedingCode);
+                Internal.IL.ILImporter.CompileMethod(this, methodCodeNodeNeedingCode);
             }
         }
 
