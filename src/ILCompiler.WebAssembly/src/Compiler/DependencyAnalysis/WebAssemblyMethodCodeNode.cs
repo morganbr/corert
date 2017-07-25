@@ -5,7 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-
+using System.Linq;
 using ILCompiler.DependencyAnalysisFramework;
 
 using Internal.Text;
@@ -13,13 +13,13 @@ using Internal.TypeSystem;
 
 namespace ILCompiler.DependencyAnalysis
 {
-    internal class CppMethodCodeNode : DependencyNodeCore<NodeFactory>, IMethodBodyNode
+    internal class WebAssemblyMethodCodeNode : DependencyNodeCore<NodeFactory>, IMethodBodyNode
     {
         private MethodDesc _method;
         private string _methodCode;
-        private IEnumerable<Object> _dependencies;
+        private IEnumerable<Object> _dependencies = Enumerable.Empty<Object>();
 
-        public CppMethodCodeNode(MethodDesc method)
+        public WebAssemblyMethodCodeNode(MethodDesc method)
         {
             Debug.Assert(!method.IsAbstract);
             _method = method;
@@ -50,7 +50,9 @@ namespace ILCompiler.DependencyAnalysis
 
         protected override string GetName(NodeFactory factory) => this.GetMangledName(factory.NameMangler);
 
-        public override bool StaticDependenciesAreComputed => _methodCode != null;
+        public override bool StaticDependenciesAreComputed => CompilationCompleted;
+
+        public bool CompilationCompleted { get; set; }
 
         public void AppendMangledName(NameMangler nameMangler, Utf8StringBuilder sb)
         {
@@ -68,7 +70,7 @@ namespace ILCompiler.DependencyAnalysis
             var dependencies = new DependencyList();
 
             foreach (Object node in _dependencies)
-                dependencies.Add(node, "CPP code ");
+                dependencies.Add(node, "Wasm code ");
 
             return dependencies;
         }
