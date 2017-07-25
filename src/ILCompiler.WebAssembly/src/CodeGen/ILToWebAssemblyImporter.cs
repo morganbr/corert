@@ -3,12 +3,15 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 
 using Internal.TypeSystem;
 using ILCompiler;
 using LLVMSharp;
 using ILCompiler.CodeGen;
+using ILCompiler.DependencyAnalysis;
+using ILCompiler.DependencyAnalysisFramework;
 
 namespace Internal.IL
 {
@@ -16,8 +19,15 @@ namespace Internal.IL
     // backend before the actual compilation happens to gain insights into the code.
     partial class ILImporter
     {
+        ArrayBuilder<object> _dependences = new ArrayBuilder<object>();
+        public IEnumerable<object> GetDependencies()
+        {
+            return _dependences.ToArray();
+        }
+
         public LLVMModuleRef Module { get; }
         private readonly MethodDesc _method;
+        private readonly MethodIL _methodIL;
         private readonly WebAssemblyCodegenCompilation _compilation;
         private LLVMValueRef _llvmFunction;
         private LLVMBasicBlockRef _curBasicBlock;
@@ -60,6 +70,7 @@ namespace Internal.IL
             Module = compilation.Module;
             _compilation = compilation;
             _method = method;
+            _methodIL = methodIL;
             _ilBytes = methodIL.GetILBytes();
             _locals = methodIL.GetLocals();
             _methodIL = methodIL;
@@ -410,6 +421,7 @@ namespace Internal.IL
 
         private void ImportPop()
         {
+            _stack.Pop();
         }
 
         private void ImportJmp(int token)
@@ -868,8 +880,20 @@ namespace Internal.IL
         {
         }
 
+        private LLVMValueRef LoadAddressOfSymbolNode(ISymbolNode node)
+        {
+            return WebAssemblyObjectWriter.GetSymbolValuePointer(Module, node, _compilation.NameMangler, false);
+        }
+
         private void ImportLoadString(int token)
         {
+            TypeDesc stringType = this._compilation.TypeSystemContext.GetWellKnownType(WellKnownType.String);
+
+            string str = (string)_methodIL.GetObject(token);
+            ISymbolNode node = _compilation.NodeFactory.SerializedStringObject(str);
+            LLVMValueRef stringDataPointer = LoadAddressOfSymbolNode(node);
+            _dependences.Add(node);
+            _stack.Push(new ExpressionEntry(GetStackValueKind(stringType), String.Empty, stringDataPointer, stringType));
         }
 
         private void ImportInitObj(int token)

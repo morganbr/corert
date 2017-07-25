@@ -6,8 +6,10 @@ using System;
 
 internal class Program
 {
-    private static void Main(string[] args)
+    private static int Main(string[] args)
     {
-        Console.WriteLine("Hello world");
+        object local = "foo";
+        return 1;
+        //Console.WriteLine("Hello world");
     }
 }
