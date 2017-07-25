@@ -6,7 +6,7 @@ using System;
 
 internal class Program
 {
-    private static int Main(string[] args)
+    private static void Main(string[] args)
     {
         Console.WriteLine("Hello world");
     }
