@@ -33,7 +33,6 @@ namespace Internal.IL
         private LLVMBasicBlockRef _curBasicBlock;
         private LLVMBuilderRef _builder;
         private readonly LocalVariableDefinition[] _locals;
-        private MethodIL _methodIL;
 
         private readonly byte[] _ilBytes;
 
@@ -73,7 +72,6 @@ namespace Internal.IL
             _methodIL = methodIL;
             _ilBytes = methodIL.GetILBytes();
             _locals = methodIL.GetLocals();
-            _methodIL = methodIL;
 
             var ilExceptionRegions = methodIL.GetExceptionRegions();
             _exceptionRegions = new ExceptionRegion[ilExceptionRegions.Length];

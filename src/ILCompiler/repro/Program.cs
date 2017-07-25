@@ -8,8 +8,6 @@ internal class Program
 {
     private static int Main(string[] args)
     {
-        object local = "foo";
-        return 1;
-        //Console.WriteLine("Hello world");
+        Console.WriteLine("Hello world");
     }
 }
