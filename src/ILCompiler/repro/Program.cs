@@ -3,11 +3,28 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
+using System.Runtime.InteropServices;
 
+#pragma warning disable 219, 169 // unused local
 internal class Program
 {
-    private static void Main(string[] args)
+    private static unsafe int Main(string[] args)
     {
-        Console.WriteLine("Hello world");
+        TwoCharStr strStruct = new TwoCharStr();
+        strStruct.first = (byte)'q';
+        strStruct.second = (byte)'\0';
+        byte* myStr = (byte*)&strStruct;
+        printf(myStr, null);
+        return 100;
     }
+
+    [DllImport("*")]
+    private static unsafe extern int printf(byte* str, byte* unused);
 }
+
+public struct TwoCharStr
+{
+    public byte first;
+    public byte second;
+}
+
