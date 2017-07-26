@@ -6,16 +6,14 @@ using System;
 using System.Runtime.InteropServices;
 
 #pragma warning disable 219, 169 // unused local
-internal class Program
+internal static class Program
 {
-    private static unsafe int Main(string[] args)
+    private static unsafe void Main(string[] args)
     {
         TwoCharStr strStruct = new TwoCharStr();
-        strStruct.first = (byte)'q';
+        strStruct.first = (byte)'H';
         strStruct.second = (byte)'\0';
-        byte* myStr = (byte*)&strStruct;
-        printf(myStr, null);
-        return 100;
+        printf((byte*)&strStruct, null);
     }
 
     [DllImport("*")]

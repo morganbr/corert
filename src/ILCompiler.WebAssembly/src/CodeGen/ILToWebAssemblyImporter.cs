@@ -495,19 +495,15 @@ namespace Internal.IL
 
         private void ImportReturn()
         {
-            StackEntry retVal = _stack.Pop();
-            if (_method.Signature.ReturnType == GetWellKnownType(WellKnownType.Void))
+            if(_method.Signature.ReturnType != GetWellKnownType(WellKnownType.Void))
             {
-                LLVM.BuildRetVoid(_builder);
-            }
-            else
-            {
-                LLVM.BuildRet(_builder, retVal.LLVMValue);
-
+                StackEntry retVal = _stack.Pop();
                 LLVMTypeRef valueType = GetLLVMTypeForTypeDesc(_method.Signature.ReturnType);
 
                 ImportStoreHelper(retVal.LLVMValue, valueType, LLVM.GetNextParam(LLVM.GetFirstParam(_llvmFunction)), 0);
             }
+
+            LLVM.BuildRetVoid(_builder);
         }
 
         private void ImportCall(ILOpcode opcode, int token)
