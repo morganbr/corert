@@ -262,16 +262,25 @@ namespace Internal.IL
 
         private void ImportLoadVar(int index, bool argument)
         {
+            int varBase;
+            int varOffset;
+            LLVMTypeRef valueType;
+
             if (argument)
             {
-                throw new NotImplementedException("loading from argument");
+                varBase = 0;
+                GetArgSizeAndOffsetAtIndex(index, out int argSize, out varOffset);
+                valueType = GetLLVMTypeForTypeDesc(_method.Signature[index]);
+            }
+            else
+            {
+                varBase = GetTotalParameterOffset();
+                GetLocalSizeAndOffsetAtIndex(index, out int localSize, out varOffset);
+                valueType = GetLLVMTypeForTypeDesc(_locals[index].Type);
             }
 
-            GetLocalSizeAndOffsetAtIndex(index, out int localSize, out int localOffset);
-
-            LLVMTypeRef valueType = GetLLVMTypeForTypeDesc(_locals[index].Type);
             var loadLocation = LLVM.BuildGEP(_builder, LLVM.GetFirstParam(_llvmFunction),
-                new LLVMValueRef[] { LLVM.ConstInt(LLVM.Int32Type(), (uint)(GetTotalParameterOffset()+localOffset), LLVMMisc.False) },
+                new LLVMValueRef[] { LLVM.ConstInt(LLVM.Int32Type(), (uint)(varBase + varOffset), LLVMMisc.False) },
                 String.Empty);
             var typedLoadLocation = LLVM.BuildPointerCast(_builder, loadLocation, LLVM.PointerType(valueType, 0), String.Empty);
             var loadResult = LLVM.BuildLoad(_builder, typedLoadLocation, String.Empty);
@@ -419,6 +428,18 @@ namespace Internal.IL
                 offset += _method.Signature[i].GetElementSize().AsInt;
             }
             return offset;
+        }
+
+        private void GetArgSizeAndOffsetAtIndex(int index, out int size, out int offset)
+        {
+            var argType = _method.Signature[index];
+            size = argType.GetElementSize().AsInt;
+
+            offset = 0;
+            for (int i = 0; i < index; i++)
+            {
+                offset += _method.Signature[i].GetElementSize().AsInt;
+            }
         }
 
         private void GetLocalSizeAndOffsetAtIndex(int index, out int size, out int offset)
