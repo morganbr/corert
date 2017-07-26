@@ -3,12 +3,15 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 
 using Internal.TypeSystem;
 using ILCompiler;
 using LLVMSharp;
 using ILCompiler.CodeGen;
+using ILCompiler.DependencyAnalysis;
+using ILCompiler.DependencyAnalysisFramework;
 
 namespace Internal.IL
 {
@@ -16,14 +19,20 @@ namespace Internal.IL
     // backend before the actual compilation happens to gain insights into the code.
     partial class ILImporter
     {
+        ArrayBuilder<object> _dependences = new ArrayBuilder<object>();
+        public IEnumerable<object> GetDependencies()
+        {
+            return _dependences.ToArray();
+        }
+
         public LLVMModuleRef Module { get; }
         private readonly MethodDesc _method;
+        private readonly MethodIL _methodIL;
         private readonly WebAssemblyCodegenCompilation _compilation;
         private LLVMValueRef _llvmFunction;
         private LLVMBasicBlockRef _curBasicBlock;
         private LLVMBuilderRef _builder;
         private readonly LocalVariableDefinition[] _locals;
-        private MethodIL _methodIL;
 
         private readonly byte[] _ilBytes;
 
@@ -60,9 +69,9 @@ namespace Internal.IL
             Module = compilation.Module;
             _compilation = compilation;
             _method = method;
+            _methodIL = methodIL;
             _ilBytes = methodIL.GetILBytes();
             _locals = methodIL.GetLocals();
-            _methodIL = methodIL;
 
             var ilExceptionRegions = methodIL.GetExceptionRegions();
             _exceptionRegions = new ExceptionRegion[ilExceptionRegions.Length];
@@ -120,6 +129,32 @@ namespace Internal.IL
         private void PushExpression(StackValueKind kind, string name, LLVMValueRef llvmValue, TypeDesc type = null)
         {
             Debug.Assert(kind != StackValueKind.Unknown, "Unknown stack kind");
+
+            switch (kind)
+            {
+                case StackValueKind.Int32:
+                case StackValueKind.NativeInt:
+                    {
+                        if (!type.IsWellKnownType(WellKnownType.Int32)
+                            && !type.IsWellKnownType(WellKnownType.IntPtr)
+                            && !type.IsWellKnownType(WellKnownType.UInt32)
+                            && !type.IsWellKnownType(WellKnownType.UIntPtr))
+                        {
+                            llvmValue = LLVM.BuildIntCast(_builder, llvmValue, LLVM.Int32Type(), "");
+                        }
+                    }
+                    break;
+
+                case StackValueKind.Int64:
+                    {
+                        if (!type.IsWellKnownType(WellKnownType.Int64)
+                            && !(type.IsWellKnownType(WellKnownType.UInt64)))
+                        {
+                            llvmValue = LLVM.BuildIntCast(_builder, llvmValue, LLVM.Int64Type(), "");
+                        }
+                    }
+                    break;
+            }
 
             _stack.Push(new ExpressionEntry(kind, name, llvmValue, type));
         }
@@ -246,7 +281,7 @@ namespace Internal.IL
             var typedLoadLocation = LLVM.BuildPointerCast(_builder, loadLocation, LLVM.PointerType(valueType, 0), String.Empty);
             var loadResult = LLVM.BuildLoad(_builder, typedLoadLocation, String.Empty);
 
-            _stack.Push(new ExpressionEntry(GetStackValueKind(_locals[index].Type), String.Empty, loadResult, _locals[index].Type));
+            PushExpression(GetStackValueKind(_locals[index].Type), String.Empty, loadResult, _locals[index].Type);
         }
 
         private StackValueKind GetStackValueKind(TypeDesc type)
@@ -308,11 +343,12 @@ namespace Internal.IL
 
         private void ImportStoreHelper(LLVMValueRef toStore, LLVMTypeRef valueType, LLVMValueRef basePtr, uint offset)
         {
+            var typedToStore = LLVM.BuildIntCast(_builder, toStore, valueType, String.Empty);
             var storeLocation = LLVM.BuildGEP(_builder, basePtr,
                 new LLVMValueRef[] { LLVM.ConstInt(LLVM.Int32Type(), offset, LLVMMisc.False) },
                 String.Empty);
             var typedStoreLocation = LLVM.BuildPointerCast(_builder, storeLocation, LLVM.PointerType(valueType, 0), String.Empty);
-            LLVM.BuildStore(_builder, toStore, typedStoreLocation);
+            LLVM.BuildStore(_builder, typedToStore, typedStoreLocation);
         }
 
         private LLVMTypeRef GetLLVMTypeForTypeDesc(TypeDesc type)
@@ -335,13 +371,13 @@ namespace Internal.IL
                 case TypeFlags.UInt32:
                 case TypeFlags.IntPtr:
                 case TypeFlags.UIntPtr:
+                    return LLVM.Int32Type();
+
                 case TypeFlags.Class:
                 case TypeFlags.Interface:
                 case TypeFlags.Array:
                 case TypeFlags.SzArray:
                 case TypeFlags.ByRef:
-                    return LLVM.Int32Type();
-
                 case TypeFlags.Pointer:
                     return LLVM.PointerType(GetLLVMTypeForTypeDesc(type.GetParameterType()), 0);
 
@@ -426,6 +462,7 @@ namespace Internal.IL
 
         private void ImportPop()
         {
+            _stack.Pop();
         }
 
         private void ImportJmp(int token)
@@ -777,7 +814,7 @@ namespace Internal.IL
                     throw new NotSupportedException(); // unreachable
             }
 
-            PushExpression(kind, "", result);
+            PushExpression(kind, "", result, GetWellKnownType(WellKnownType.SByte));
         }
 
         private void ImportConvert(WellKnownType wellKnownType, bool checkOverflow, bool unsigned)
@@ -915,8 +952,23 @@ namespace Internal.IL
             LLVM.BuildStore(_builder, valueEntry.LLVMValue, typedStoreLocation);
         }
 
+        // Loads symbol address. Address is represented as a i32*
+        private LLVMValueRef LoadAddressOfSymbolNode(ISymbolNode node)
+        {
+            LLVMValueRef addressOfAddress = WebAssemblyObjectWriter.GetSymbolValuePointer(Module, node, _compilation.NameMangler, false);
+            //return addressOfAddress;
+            return LLVM.BuildLoad(_builder, addressOfAddress, "LoadAddressOfSymbolNode");
+        }
+
         private void ImportLoadString(int token)
         {
+            TypeDesc stringType = this._compilation.TypeSystemContext.GetWellKnownType(WellKnownType.String);
+
+            string str = (string)_methodIL.GetObject(token);
+            ISymbolNode node = _compilation.NodeFactory.SerializedStringObject(str);
+            LLVMValueRef stringDataPointer = LoadAddressOfSymbolNode(node);
+            _dependences.Add(node);
+            _stack.Push(new ExpressionEntry(GetStackValueKind(stringType), String.Empty, stringDataPointer, stringType));
         }
 
         private void ImportInitObj(int token)
