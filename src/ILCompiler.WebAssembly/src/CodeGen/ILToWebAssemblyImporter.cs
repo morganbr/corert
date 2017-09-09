@@ -281,6 +281,7 @@ namespace Internal.IL
             if (argument)
             {
                 varBase = 0;
+                // todo: this is off by one for instance methods
                 GetArgSizeAndOffsetAtIndex(index, out int argSize, out varOffset);
                 valueType = GetLLVMTypeForTypeDesc(_method.Signature[index]);
                 type = _method.Signature[index];
@@ -393,6 +394,8 @@ namespace Internal.IL
 
                 case TypeFlags.Class:
                 case TypeFlags.Interface:
+                    return LLVM.PointerType(LLVM.Int8Type(), 0);
+
                 case TypeFlags.Array:
                 case TypeFlags.SzArray:
                 case TypeFlags.ByRef:
@@ -528,7 +531,9 @@ namespace Internal.IL
                 ImportRawPInvoke(callee);
                 return;
             }
-            if (opcode != ILOpcode.call)
+
+            // we don't really have virtual call support, but we'll treat it as direct for now
+            if (opcode != ILOpcode.call && opcode !=  ILOpcode.callvirt)
             {
                 throw new NotImplementedException();
             }
