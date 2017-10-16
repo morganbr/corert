@@ -101,6 +101,7 @@ namespace Internal.IL
 
         static LLVMValueRef TrapFunction = default(LLVMValueRef);
         static LLVMValueRef DoNothingFunction = default(LLVMValueRef);
+        static LLVMValueRef MemsetFunction = default(LLVMValueRef);
 
         private static IEnumerable<string> GetParameterNamesForMethod(MethodDesc method)
         {

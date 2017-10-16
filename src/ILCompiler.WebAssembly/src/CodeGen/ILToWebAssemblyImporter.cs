@@ -666,7 +666,7 @@ namespace Internal.IL
             }
 
             // we don't really have virtual call support, but we'll treat it as direct for now
-            if (opcode != ILOpcode.call && opcode !=  ILOpcode.callvirt)
+            if (opcode != ILOpcode.call && opcode !=  ILOpcode.callvirt && opcode != ILOpcode.newobj)
             {
                 throw new NotImplementedException();
             }
@@ -675,7 +675,51 @@ namespace Internal.IL
                 throw new NotImplementedException();
             }
 
+            StackEntry newObjEntry = null;
+            if (opcode == ILOpcode.newobj)
+            {
+                AllocateObject(callee.OwningType);
+                newObjEntry = _stack.Peek();
+            }
+
             HandleCall(callee);
+
+            // The constructor call popped the new object, so push it again
+            if(opcode == ILOpcode.newobj)
+            {
+                _stack.Push(newObjEntry);
+            }
+        }
+
+        private void AllocateObject(TypeDesc type)
+        {
+            MetadataType metadataType = (MetadataType)type;
+            int objectSize = metadataType.InstanceByteCount.AsInt;
+            LLVMValueRef objectSizeValue = BuildConstInt32(objectSize);
+            LLVMValueRef allocatedMemory = LLVM.BuildMalloc(_builder, LLVM.ArrayType(LLVM.Int8Type(), (uint)objectSize), "newobj");
+            LLVMValueRef castMemory = LLVM.BuildPointerCast(_builder, allocatedMemory, LLVM.PointerType(LLVM.Int8Type(), 0), "castnewobj");
+            if (MemsetFunction.Pointer == IntPtr.Zero)
+            {
+                MemsetFunction = LLVM.AddFunction(Module, "llvm.memset", LLVM.FunctionType(LLVM.VoidType(), new LLVMTypeRef[] { LLVM.PointerType(LLVM.Int8Type(), 0), LLVM.Int8Type(), LLVM.Int32Type(), LLVM.Int32Type(), LLVM.Int1Type() }, false));
+            }
+            LLVM.BuildCall(_builder, MemsetFunction, new LLVMValueRef[] { castMemory, BuildConstInt8(0), objectSizeValue, BuildConstInt32(1), BuildConstInt1(0) }, String.Empty);
+            PushExpression(StackValueKind.ObjRef, "newobj", castMemory, type);
+        }
+
+        private static LLVMValueRef BuildConstInt1(int number)
+        {
+            Debug.Assert(number == 0 || number == 1, "Non-boolean int1");
+            return LLVM.ConstInt(LLVM.Int1Type(), (ulong)number, LLVMMisc.False);
+        }
+
+        private static LLVMValueRef BuildConstInt8(byte number)
+        {
+            return LLVM.ConstInt(LLVM.Int8Type(), number, LLVMMisc.False);
+        }
+
+        private static LLVMValueRef BuildConstInt32(int number)
+        {
+            return LLVM.ConstInt(LLVM.Int32Type(), (ulong)number, LLVMMisc.False);
         }
 
         /// <summary>
