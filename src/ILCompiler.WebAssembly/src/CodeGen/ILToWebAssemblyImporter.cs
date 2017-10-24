@@ -703,6 +703,11 @@ namespace Internal.IL
                 MemsetFunction = LLVM.AddFunction(Module, "llvm.memset", LLVM.FunctionType(LLVM.VoidType(), new LLVMTypeRef[] { LLVM.PointerType(LLVM.Int8Type(), 0), LLVM.Int8Type(), LLVM.Int32Type(), LLVM.Int32Type(), LLVM.Int1Type() }, false));
             }
             LLVM.BuildCall(_builder, MemsetFunction, new LLVMValueRef[] { castMemory, BuildConstInt8(0), objectSizeValue, BuildConstInt32(1), BuildConstInt1(0) }, String.Empty);
+            ISymbolNode node = _compilation.NodeFactory.ConstructedTypeSymbol(type);
+            LLVMValueRef eeTypePointer = LoadAddressOfSymbolNode(node);
+            _dependencies.Add(node);
+            LLVMValueRef objectHeaderPtr = LLVM.BuildPointerCast(_builder, allocatedMemory, LLVM.PointerType(LLVM.TypeOf(eeTypePointer), 0), "objectHeaderPtr");
+            LLVM.BuildStore(_builder, eeTypePointer, objectHeaderPtr);
             PushExpression(StackValueKind.ObjRef, "newobj", castMemory, type);
         }
 

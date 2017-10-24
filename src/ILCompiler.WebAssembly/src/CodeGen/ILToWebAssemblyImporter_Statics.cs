@@ -23,10 +23,27 @@ namespace Internal.IL
         {
             MethodDesc method = methodCodeNodeNeedingCode.Method;
 
+            //morganb debug
+            if(method.IsConstructor && method.Signature.Length == 2)
+            {
+                int x = 3;
+                x++;
+            }
+            // end debug
+
             if (compilation.Logger.IsVerbose)
             {
                 string methodName = method.ToString();
-                compilation.Logger.Writer.WriteLine("Compiling " + methodName);
+                compilation.Logger.Writer.Write("Compiling " + methodName + "(");
+                for(int i = 0; i < method.Signature.Length; i++)
+                {
+                    compilation.Logger.Writer.Write(method.Signature[i]);
+                    if(i < method.Signature.Length - 1)
+                    {
+                        compilation.Logger.Writer.Write(", ");
+                    }
+                }
+                compilation.Logger.Writer.WriteLine(")");
             }
 
             if (method.HasCustomAttribute("System.Runtime", "RuntimeImportAttribute"))
@@ -45,7 +62,10 @@ namespace Internal.IL
 
             var methodIL = compilation.GetMethodIL(method);
             if (methodIL == null)
+            {
+                methodCodeNodeNeedingCode.CompilationCompleted = true;
                 return;
+            }
 
             ILImporter ilImporter = null;
             try
