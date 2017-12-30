@@ -7,11 +7,47 @@ using System.Runtime.InteropServices;
 
 internal static class Program
 {
-    private static int staticInt;
-    [ThreadStatic]
-    private static int threadStaticInt;
+    //private static int staticInt;
+    //[ThreadStatic]
+    //private static int threadStaticInt;
     private static unsafe void Main(string[] args)
     {
+        PrintLine("Starting");
+        try
+        {
+            throw new Exception();
+        }
+        catch(Exception)
+        {
+            PrintLine("Caught own exception");
+        }
+
+        try
+        {
+            ThrowAnException();
+            //throw new Exception();
+            //PrintLine("Won't throw");
+        }
+        //catch (ApplicationException apex)
+        //{
+        //    int x = apex.HResult;
+        //}
+        catch(Exception)
+        {
+            PrintLine("Caught callee's exception");
+        }
+
+        try
+        {
+            PrintLine("Not throwing");
+        }
+        catch
+        {
+            PrintLine("Shouldn't see this");
+        }
+
+        PrintLine("Done");
+        /*
         Add(1, 2);
         int tempInt = 0;
         (*(&tempInt)) = 9;
@@ -107,7 +143,12 @@ internal static class Program
         if (switchTestDefault == 0)
         {
             PrintLine("SwitchOpDefault test: Ok.");
-        }
+        }*/
+    }
+
+    private static void ThrowAnException()
+    {
+        throw new Exception();
     }
 
     private static unsafe void PrintString(string s)

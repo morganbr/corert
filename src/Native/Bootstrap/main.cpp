@@ -211,10 +211,23 @@ Object * __load_string_literal(const char * string)
     return pString;
 }
 
+class ManagedExceptionWrapper : exception
+{
+public:
+    ManagedExceptionWrapper(void* pManagedException)
+    {
+        m_pManagedException = pManagedException;
+    }
+
+private:
+    void* m_pManagedException;
+};
+
 extern "C" void RhpThrowEx(void * pEx)
 {
-    throw "RhpThrowEx";
+    throw ManagedExceptionWrapper(pEx);
 }
+
 extern "C" void RhpThrowHwEx()
 {
     throw "RhpThrowHwEx";

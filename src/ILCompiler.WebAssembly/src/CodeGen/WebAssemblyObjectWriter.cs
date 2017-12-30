@@ -181,13 +181,13 @@ namespace ILCompiler.DependencyAnalysis
             }
 
             EmitNativeMain();
-            LLVM.WriteBitcodeToFile(Module, _objectFilePath);
 #if DEBUG
             LLVM.PrintModuleToFile(Module, Path.ChangeExtension(_objectFilePath, ".txt"), out IntPtr unused2);
 #endif //DEBUG
+            LLVM.WriteBitcodeToFile(Module, _objectFilePath);
             LLVM.VerifyModule(Module, LLVMVerifierFailureAction.LLVMAbortProcessAction, out IntPtr unused);
 
-            //throw new NotImplementedException(); // This function isn't complete
+
         }
 
         public static LLVMValueRef GetConstZeroArray(int length)
