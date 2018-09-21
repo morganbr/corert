@@ -1362,7 +1362,7 @@ namespace System
                     digits -= 9;
                 }
                 p = UInt32ToDecChars(p, Low32(value), digits);
-                Debug.Assert(p == buffer);
+                //Debug.Assert(p == buffer);
             }
             return result;
         }
@@ -1389,7 +1389,7 @@ namespace System
                     digits -= 9;
                 }
                 p = UInt32ToDecChars(p, Low32(value), digits);
-                Debug.Assert(p == buffer);
+                //Debug.Assert(p == buffer);
             }
             return true;
         }

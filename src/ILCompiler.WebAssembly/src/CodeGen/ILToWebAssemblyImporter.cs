@@ -1767,8 +1767,8 @@ namespace Internal.IL
         private ExpressionEntry ImportRawPInvoke(MethodDesc method, StackEntry[] arguments, TypeDesc forcedReturnType = null)
         {
             //emscripten dies if this is output because its expected to have i32, i32, i64. But the runtime has defined it as i8*, i8*, i64
-            if (method.Name == "memmove")
-                throw new NotImplementedException();
+            //if (method.Name == "memmove")
+            //    throw new NotImplementedException();
 
             string realMethodName = method.Name;
 
@@ -2375,13 +2375,13 @@ namespace Internal.IL
             switch (opcode)
             {
                 case ILOpcode.shl:
-                    result = LLVM.BuildShl(_builder, valueToShiftValue, numBitsToShift.ValueAsInt32(_builder, false), "shl");
+                    result = LLVM.BuildShl(_builder, valueToShiftValue, numBitsToShift.ValueForStackKind(valueToShift.Kind, _builder, false), "shl");
                     break;
                 case ILOpcode.shr:
-                    result = LLVM.BuildAShr(_builder, valueToShiftValue, numBitsToShift.ValueAsInt32(_builder, false), "shr");
+                    result = LLVM.BuildAShr(_builder, valueToShiftValue, numBitsToShift.ValueForStackKind(valueToShift.Kind, _builder, false), "shr");
                     break;
                 case ILOpcode.shr_un:
-                    result = LLVM.BuildLShr(_builder, valueToShiftValue, numBitsToShift.ValueAsInt32(_builder, false), "shr");
+                    result = LLVM.BuildLShr(_builder, valueToShiftValue, numBitsToShift.ValueForStackKind(valueToShift.Kind, _builder, false), "shr");
                     break;
                 default:
                     throw new InvalidOperationException(); // Should be unreachable

@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 #if PLATFORM_WINDOWS
 using CpObj;
@@ -13,10 +14,57 @@ internal static class Program
     private static int staticInt;
     [ThreadStatic]
     private static int threadStaticInt;
+
+    static ulong GetFib(int nth)
+    {
+        if (nth == 0)
+        {
+            return 1;
+        }
+        else if (nth == 1)
+        {
+            return 1;
+        }
+
+        ulong prev = 1;
+        ulong prevprev = 1;
+        ulong cur = 0;
+        for (int i = 1; i < nth; i++)
+        {
+            cur = prev + prevprev;
+            prevprev = prev;
+            prev = cur;
+        }
+
+        return cur;
+    }
+
     private static unsafe int Main(string[] args)
     {
         PrintLine("Starting");
 
+        System.Diagnostics.Stopwatch sw = System.Diagnostics.Stopwatch.StartNew();
+        ulong result = GetFib(10000000);
+        sw.Stop();
+        PrintLine(result.ToString());
+        PrintLine(sw.ElapsedMilliseconds.ToString());
+
+        string str = "";
+        Stopwatch stringSw = Stopwatch.StartNew();
+        for (int j = 0; j < 2000; j++)
+        {
+            str += 'a';
+        }
+        stringSw.Stop();
+        PrintLine(str[0].ToString());
+        PrintLine(stringSw.ElapsedMilliseconds.ToString());
+
+        PrintLine("Done");
+        return 100;
+    }
+
+    public static unsafe int DoNothing()
+    { 
         Add(1, 2);
         int tempInt = 0;
         int tempInt2 = 0;
